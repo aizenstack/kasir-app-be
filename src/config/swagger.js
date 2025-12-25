@@ -24,8 +24,11 @@ const options = {
           type: "oauth2",
           flows: {
             password: {
-              tokenUrl: process.env.API_URL ? `${process.env.API_URL}/auth/login` : "http://localhost:3000/auth/login",
-              scopes: {},
+              tokenUrl: process.env.API_URL ? `${process.env.API_URL}/auth/token` : "http://localhost:3000/auth/token",
+              scopes: {
+                administrator: "Administrator access",
+                petugas: "Petugas access"
+              },
             },
           },
         },
