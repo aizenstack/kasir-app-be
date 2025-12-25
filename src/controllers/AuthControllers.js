@@ -209,3 +209,71 @@ exports.deleteUser = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// OAuth2 Token endpoint for Swagger OAuth2 Password flow
+exports.oauth2Token = async (req, res) => {
+  try {
+    const { username, password, grant_type } = req.body;
+
+    // OAuth2 Password flow requires grant_type=password
+    if (grant_type !== 'password') {
+      return res.status(400).json({ 
+        error: 'unsupported_grant_type',
+        error_description: 'Only password grant type is supported'
+      });
+    }
+
+    if (!username || !password) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Username and password are required'
+      });
+    }
+
+    const trimmedUsername = username.trim();
+    const user = await findUserByUsername(trimmedUsername);
+
+    if (!user) {
+      return res.status(401).json({
+        error: 'invalid_grant',
+        error_description: 'Invalid username or password'
+      });
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({
+        error: 'invalid_grant',
+        error_description: 'Invalid username or password'
+      });
+    }
+
+    const tokens = generateTokens(user);
+    
+    // Calculate expires_in in seconds (default 24h = 86400 seconds)
+    const expiresIn = process.env.JWT_EXPIRES_IN || "24h";
+    let expiresInSeconds = 86400; // default 24 hours
+    if (expiresIn.endsWith('h')) {
+      expiresInSeconds = parseInt(expiresIn) * 3600;
+    } else if (expiresIn.endsWith('m')) {
+      expiresInSeconds = parseInt(expiresIn) * 60;
+    } else if (expiresIn.endsWith('d')) {
+      expiresInSeconds = parseInt(expiresIn) * 86400;
+    }
+
+    // Return OAuth2 standard format
+    return res.status(200).json({
+      access_token: tokens.accessToken,
+      token_type: 'bearer',
+      expires_in: expiresInSeconds,
+      refresh_token: tokens.refreshToken,
+      scope: user.role
+    });
+  } catch (error) {
+    console.error("OAuth2 token error:", error);
+    return res.status(500).json({
+      error: 'server_error',
+      error_description: 'Internal server error'
+    });
+  }
+};
