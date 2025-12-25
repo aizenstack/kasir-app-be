@@ -1,7 +1,7 @@
 const prisma = require("../utils/client");
 
 exports.createUser = (data) => {
-  return prisma.user.create({
+  return prisma.users.create({
     data,
     select: {
       id: true,
@@ -13,7 +13,7 @@ exports.createUser = (data) => {
 };
 
 exports.findUserByUsername = (username) => {
-  return prisma.user.findUnique({
+  return prisma.users.findUnique({
     where: { username },
     select: {
       id: true,
@@ -26,7 +26,7 @@ exports.findUserByUsername = (username) => {
 };
 
 exports.getAllUsers = () => {
-  return prisma.user.findMany({
+  return prisma.users.findMany({
     select: {
       id: true,
       username: true,
@@ -40,7 +40,7 @@ exports.getAllUsers = () => {
 };
 
 exports.getUserById = (id) => {
-  return prisma.user.findUnique({
+  return prisma.users.findUnique({
     where: { id },
     select: {
       id: true,
@@ -52,7 +52,7 @@ exports.getUserById = (id) => {
 };
 
 exports.updateUser = (id, data) => {
-  return prisma.user.update({
+  return prisma.users.update({
     where: { id },
     data,
     select: {
@@ -65,7 +65,7 @@ exports.updateUser = (id, data) => {
 };
 
 exports.deleteUser = (id) => {
-  return prisma.user.delete({
+  return prisma.users.delete({
     where: { id },
     select: {
       id: true,

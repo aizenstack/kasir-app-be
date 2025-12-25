@@ -2,6 +2,7 @@ const express = require('express')
 const {
   register,
   login,
+  oauth2Token,
   getAllUsers,
   getUserById,
   updateUser,
@@ -125,6 +126,62 @@ router.post('/auth/register', authenticateJWT, isAdmin, register)
  *         description: Internal server error
  */
 router.post('/auth/login', login)
+
+/**
+ * @swagger
+ * /auth/token:
+ *   post:
+ *     summary: OAuth2 Token endpoint (for Swagger OAuth2 flow)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - grant_type
+ *               - username
+ *               - password
+ *             properties:
+ *               grant_type:
+ *                 type: string
+ *                 example: "password"
+ *               username:
+ *                 type: string
+ *                 example: "admin"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "password123"
+ *     responses:
+ *       200:
+ *         description: Token issued successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 access_token:
+ *                   type: string
+ *                 token_type:
+ *                   type: string
+ *                   example: "bearer"
+ *                 expires_in:
+ *                   type: integer
+ *                   example: 86400
+ *                 refresh_token:
+ *                   type: string
+ *                 scope:
+ *                   type: string
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/auth/token', oauth2Token)
 
 /**
  * @swagger
