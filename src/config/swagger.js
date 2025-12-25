@@ -1,0 +1,56 @@
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Kasir App API",
+      version: "1.0.0",
+      description: "API Documentation for Kasir App",
+      contact: {
+        name: "API Support",
+      },
+    },
+    servers: [
+      {
+        url: process.env.API_URL || 'http://localhost:3000',
+        description: 'Development server',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        OAuth2Password: {
+          type: "oauth2",
+          flows: {
+            password: {
+              tokenUrl: process.env.API_URL ? `${process.env.API_URL}/auth/login` : "http://localhost:3000/auth/login",
+              scopes: {},
+            },
+          },
+        },
+      },
+    },
+    security: [
+      {
+        OAuth2Password: [],
+      },
+    ],
+  },
+  apis: ["./src/routes/*.js", "./src/controllers/*.js"], // Path to the API files
+};
+
+const swaggerSpec = swaggerJsdoc(options);
+
+const swaggerSetup = (app) => {
+  app.use(
+    "/sikas/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      customCss: ".swagger-ui .topbar { display: none }",
+      customSiteTitle: "Kasir App API Documentation",
+    })
+  );
+};
+
+module.exports = { swaggerSetup, swaggerSpec };

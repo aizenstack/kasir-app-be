@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum roles {
+  administrator
+  petugas
+}
+
+model users {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role     roles     @default(petugas)
+  createdAt DateTime @default(now())
+}
+
+model pelanggan {
+  id             Int      @id @default(autoincrement())
+  nama_pelanggan String
+  alamat         String
+  telepon        String
+  createdAt      DateTime @default(now())
+
+  penjualan penjualan[]
+}
+
+model produk {
+  id          Int      @id @default(autoincrement())
+  nama_produk String
+  harga       Decimal  @db.Decimal(10, 2)
+  stok        Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  detailPenjualan detail_penjualan[]
+}
+
+model penjualan {
+  id                Int      @id @default(autoincrement())
+  tanggal_penjualan DateTime
+  total_harga       Decimal  @db.Decimal(10, 2)
+  createdAt         DateTime @default(now())
+
+  pelanggan_id Int?
+  pelanggan    pelanggan? @relation(fields: [pelanggan_id], references: [id])
+
+  detailPenjualan detail_penjualan[]
+}
+
+model detail_penjualan {
+  id Int @id @default(autoincrement())
+
+  penjualan_id Int
+  penjualan    penjualan @relation(fields: [penjualan_id], references: [id])
+
+  produk_id Int
+  produk    produk @relation(fields: [produk_id], references: [id])
+
+  jumlah_produk Int
+  subtotal      Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+}
