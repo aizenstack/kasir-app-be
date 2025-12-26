@@ -43,7 +43,7 @@ Aplikasi ini dikembangkan menggunakan **Express.js**, **Prisma ORM**, dan **MySQ
 - **Prisma ORM 5.22.0**  
   Next-generation ORM dengan type-safety dan auto-generated queries
 
-- **MySQL**  
+- **PostgreSQL**  
   Database relational untuk menyimpan data transaksi dan master data
 
 - **JWT (JSON Web Token)**  
