@@ -144,6 +144,7 @@ exports.getAllPenjualan = async (req, res) => {
   try {
     const data = await getAllPenjualan();
     return res.status(200).json({
+      message: "Penjualan retrieved successfully",
       data,
     });
   } catch (error) {
@@ -157,8 +158,13 @@ exports.getAllPenjualan = async (req, res) => {
 exports.getPenjualanById = async (req, res) => {
   try {
     const { id } = req.params;
+    const penjualanId = parseInt(id);
 
-    const penjualan = await getPenjualanById(id);
+    if (isNaN(penjualanId)) {
+      return res.status(400).json({ message: "Invalid penjualan ID" });
+    }
+
+    const penjualan = await getPenjualanById(penjualanId);
 
     if (!penjualan) {
       return res.status(404).json({
@@ -167,6 +173,7 @@ exports.getPenjualanById = async (req, res) => {
     }
 
     return res.status(200).json({
+      message: "Penjualan retrieved successfully",
       data: penjualan,
     });
   } catch (error) {
@@ -181,26 +188,53 @@ exports.updatePenjualan = async (req, res) => {
   try {
     const { id } = req.params;
     const { tanggal_penjualan, total_harga, pelanggan_id } = req.body;
+    const penjualanId = parseInt(id);
 
-    const existingPenjualan = await getPenjualanById(id);
+    if (isNaN(penjualanId)) {
+      return res.status(400).json({ message: "Invalid penjualan ID" });
+    }
+
+    const existingPenjualan = await getPenjualanById(penjualanId);
     if (!existingPenjualan) {
       return res.status(404).json({
         message: "Penjualan Not Found",
       });
     }
 
-    if (!tanggal_penjualan && !total_harga && !pelanggan_id) {
+    if (!tanggal_penjualan && !total_harga && pelanggan_id === undefined) {
       return res.status(400).json({
         message: "At least one field is required to update",
       });
     }
 
     const updateData = {};
-    if (tanggal_penjualan) updateData.tanggal_penjualan = new Date(tanggal_penjualan);
-    if (total_harga) updateData.total_harga = total_harga;
-    if (pelanggan_id !== undefined) updateData.pelanggan_id = pelanggan_id || null;
+    if (tanggal_penjualan) {
+      const date = new Date(tanggal_penjualan);
+      if (isNaN(date.getTime())) {
+        return res.status(400).json({ message: "Invalid date format" });
+      }
+      updateData.tanggal_penjualan = date;
+    }
+    if (total_harga !== undefined) {
+      const totalNum = parseFloat(total_harga);
+      if (isNaN(totalNum) || totalNum < 0) {
+        return res.status(400).json({ message: "Total harga must be a non-negative number" });
+      }
+      updateData.total_harga = totalNum;
+    }
+    if (pelanggan_id !== undefined) {
+      if (pelanggan_id === null || pelanggan_id === '') {
+        updateData.pelanggan_id = null;
+      } else {
+        const pelId = parseInt(pelanggan_id);
+        if (isNaN(pelId)) {
+          return res.status(400).json({ message: "Invalid pelanggan ID" });
+        }
+        updateData.pelanggan_id = pelId;
+      }
+    }
 
-    const updatedPenjualan = await updatePenjualan(id, updateData);
+    const updatedPenjualan = await updatePenjualan(penjualanId, updateData);
 
     return res.status(200).json({
       success: true,
@@ -218,7 +252,13 @@ exports.updatePenjualan = async (req, res) => {
 exports.deletePenjualan = async (req, res) => {
   try {
     const { id } = req.params;
-    const existingPenjualan = await getPenjualanById(id);
+    const penjualanId = parseInt(id);
+
+    if (isNaN(penjualanId)) {
+      return res.status(400).json({ message: "Invalid penjualan ID" });
+    }
+
+    const existingPenjualan = await getPenjualanById(penjualanId);
     if (!existingPenjualan) {
       return res.status(404).json({
         message: "Penjualan Not Found",
@@ -226,10 +266,10 @@ exports.deletePenjualan = async (req, res) => {
     }
 
     // Delete detail penjualan terlebih dahulu (akan otomatis terhapus karena cascade)
-    await deleteDetailPenjualanByPenjualanId(id);
+    await deleteDetailPenjualanByPenjualanId(penjualanId);
 
     // Delete penjualan
-    await deletePenjualan(id);
+    await deletePenjualan(penjualanId);
 
     return res.status(200).json({
       message: "Penjualan deleted successfully",

@@ -16,10 +16,23 @@ exports.createPelanggan = async (req, res) => {
         .json({ message: "All fields are required" });
     }
 
+    // Validasi tipe data
+    if (typeof nama_pelanggan !== 'string' || nama_pelanggan.trim() === '') {
+      return res.status(400).json({ message: "Nama pelanggan must be a non-empty string" });
+    }
+
+    if (typeof alamat !== 'string' || alamat.trim() === '') {
+      return res.status(400).json({ message: "Alamat must be a non-empty string" });
+    }
+
+    if (typeof telepon !== 'string' || telepon.trim() === '') {
+      return res.status(400).json({ message: "Telepon must be a non-empty string" });
+    }
+
     const newPelanggan = await createPelanggan({
-      nama_pelanggan,
-      alamat,
-      telepon,
+      nama_pelanggan: nama_pelanggan.trim(),
+      alamat: alamat.trim(),
+      telepon: telepon.trim(),
     });
 
     return res.status(201).json({
@@ -27,7 +40,7 @@ exports.createPelanggan = async (req, res) => {
       data: newPelanggan,
     });
   } catch (error) {
-    // console.error("Create pelanggan error:", error);
+    console.error("Create pelanggan error:", error);
     return res.status(500).json({
       message: "Internal Server Error",
     });
@@ -38,10 +51,11 @@ exports.getAllPelanggan = async (req, res) => {
   try {
     const data = await getAllPelanggan();
     return res.status(200).json({
+      message: "Pelanggan retrieved successfully",
       data,
     });
   } catch (error) {
-    // console.error("Get all pelanggan error:", error);
+    console.error("Get all pelanggan error:", error);
     return res.status(500).json({
       message: "Internal Server Error",
     });
@@ -51,8 +65,13 @@ exports.getAllPelanggan = async (req, res) => {
 exports.getPelangganById = async (req, res) => {
   try {
     const { id } = req.params;
+    const pelangganId = parseInt(id);
 
-    const pelanggan = await getPelangganById(id);
+    if (isNaN(pelangganId)) {
+      return res.status(400).json({ message: "Invalid pelanggan ID" });
+    }
+
+    const pelanggan = await getPelangganById(pelangganId);
 
     if (!pelanggan) {
       return res.status(404).json({
@@ -61,6 +80,7 @@ exports.getPelangganById = async (req, res) => {
     }
 
     return res.status(200).json({
+      message: "Pelanggan retrieved successfully",
       data: pelanggan,
     });
   } catch (error) {
@@ -75,8 +95,13 @@ exports.updatePelanggan = async (req, res) => {
   try {
     const { id } = req.params;
     const { nama_pelanggan, alamat, telepon } = req.body;
+    const pelangganId = parseInt(id);
 
-    const existingPelanggan = await getPelangganById(id);
+    if (isNaN(pelangganId)) {
+      return res.status(400).json({ message: "Invalid pelanggan ID" });
+    }
+
+    const existingPelanggan = await getPelangganById(pelangganId);
     if (!existingPelanggan) {
       return res.status(404).json({
         message: "Pelanggan Not Found",
@@ -90,11 +115,26 @@ exports.updatePelanggan = async (req, res) => {
     }
 
     const updateData = {};
-    if (nama_pelanggan) updateData.nama_pelanggan = nama_pelanggan;
-    if (alamat) updateData.alamat = alamat;
-    if (telepon) updateData.telepon = telepon;
+    if (nama_pelanggan) {
+      if (typeof nama_pelanggan !== 'string' || nama_pelanggan.trim() === '') {
+        return res.status(400).json({ message: "Nama pelanggan must be a non-empty string" });
+      }
+      updateData.nama_pelanggan = nama_pelanggan.trim();
+    }
+    if (alamat) {
+      if (typeof alamat !== 'string' || alamat.trim() === '') {
+        return res.status(400).json({ message: "Alamat must be a non-empty string" });
+      }
+      updateData.alamat = alamat.trim();
+    }
+    if (telepon) {
+      if (typeof telepon !== 'string' || telepon.trim() === '') {
+        return res.status(400).json({ message: "Telepon must be a non-empty string" });
+      }
+      updateData.telepon = telepon.trim();
+    }
 
-    const updatedPelanggan = await updatePelanggan(id, updateData);
+    const updatedPelanggan = await updatePelanggan(pelangganId, updateData);
 
     return res.status(200).json({
       success: true,
@@ -112,14 +152,20 @@ exports.updatePelanggan = async (req, res) => {
 exports.deletePelanggan = async (req, res) => {
   try {
     const { id } = req.params;
-    const existingPelanggan = await getPelangganById(id);
+    const pelangganId = parseInt(id);
+
+    if (isNaN(pelangganId)) {
+      return res.status(400).json({ message: "Invalid pelanggan ID" });
+    }
+
+    const existingPelanggan = await getPelangganById(pelangganId);
     if (!existingPelanggan) {
       return res.status(404).json({
         message: "Pelanggan Not Found",
       });
     }
 
-    await deletePelanggan(id);
+    await deletePelanggan(pelangganId);
 
     return res.status(200).json({
       message: "Pelanggan deleted successfully",

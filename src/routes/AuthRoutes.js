@@ -7,6 +7,7 @@ const {
   getUserById,
   updateUser,
   deleteUser,
+  refreshToken
 } = require('../controllers/AuthControllers')
 const { authenticateJWT } = require('../middlewares/jwt');
 const { isAdmin } = require('../middlewares/isAdmin');
@@ -37,6 +38,11 @@ const router = express.Router()
  *                 type: string
  *                 format: password
  *                 example: "password123"
+ *               role:
+ *                 type: string
+ *                 enum: [administrator, petugas]
+ *                 description: User role (administrator or petugas)
+ *                 example: "petugas"
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -273,6 +279,43 @@ router.get('/auth/users', authenticateJWT, isAdmin, getAllUsers)
  *         description: Internal server error
  */
 router.get('/auth/users/:id', authenticateJWT, isAdmin, getUserById)
+
+/**
+ * @swagger
+ * /auth/refresh-token:
+ *   post:
+ *     summary: Refresh access token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: The refresh token
+ *     responses:
+ *       200:
+ *         description: New access and refresh tokens
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         description: Bad request (missing refresh token)
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
+router.post('/auth/refresh-token', refreshToken);
 
 /**
  * @swagger

@@ -1,12 +1,28 @@
 const express = require("express");
-const dotenv = require("dotenv");
+const cors = require("cors");
+const { getCorsOrigin, initEnv } = require("./config/env");
 
 const app = express();
-dotenv.config();
+
+if (process.env.VERCEL !== '1' && !process.env.NODE_ENV) {
+  try {
+    require('dotenv').config();
+  } catch (e) {
+  }
+}
+
+initEnv();
+
+app.use(cors({
+  origin: getCorsOrigin(),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Swagger Setup
 const { swaggerSetup } = require('./config/swagger');
 swaggerSetup(app);
 
@@ -24,6 +40,21 @@ app.use( DetailPenjualanRoutes)
 
 app.get("/", (req, res) => {
   res.send("Server Is Running");
+});
+
+app.use((err, req, res, next) => {
+  console.error("Global error handler:", err);
+  res.status(err.status || 500).json({
+    message: err.message || "Internal Server Error",
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    message: "Route not found",
+    path: req.path
+  });
 });
 
 module.exports = app;

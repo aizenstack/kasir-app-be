@@ -17,7 +17,20 @@ model users {
   username  String   @unique
   password  String
   role     roles     @default(petugas)
+  refreshTokens RefreshToken[]
   createdAt DateTime @default(now())
+}
+
+model RefreshToken {
+  id           Int      @id @default(autoincrement())
+  token        String   @unique
+  userId       Int
+  user         users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([token])
 }
 
 model pelanggan {
