@@ -103,13 +103,29 @@ exports.generateTokens = async (user) => {
     expiresAt.setDate(expiresAt.getDate() + 1);
   }
 
-  await prisma.refreshToken.create({
-    data: {
-      token: refreshToken,
-      userId: user.id,
-      expiresAt: expiresAt
+  // Pastikan prisma client sudah ready
+  if (!prisma || !prisma.refreshToken) {
+    console.error('Prisma client error: refreshToken model not available');
+    console.error('Please run: npm run prisma:generate');
+    throw new Error('Prisma client not initialized. Please run: npm run prisma:generate');
+  }
+
+  try {
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt: expiresAt
+      }
+    });
+  } catch (error) {
+    console.error('Error creating refresh token:', error);
+    // Jika error karena model tidak ada, beri error yang jelas
+    if (error.message && error.message.includes('undefined')) {
+      throw new Error('Prisma RefreshToken model not found. Please run: npm run prisma:generate');
     }
-  });
+    throw error;
+  }
 
   return { accessToken, refreshToken };
 };

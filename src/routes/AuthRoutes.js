@@ -7,7 +7,8 @@ const {
   getUserById,
   updateUser,
   deleteUser,
-  refreshToken
+  refreshToken,
+  logout
 } = require('../controllers/AuthControllers')
 const { authenticateJWT } = require('../middlewares/jwt');
 const { isAdmin } = require('../middlewares/isAdmin');
@@ -78,8 +79,9 @@ router.post('/auth/register', authenticateJWT, isAdmin, register)
  * @swagger
  * /auth/login:
  *   post:
- *     summary: Login user
+ *     summary: Login user (Public endpoint - no authentication required)
  *     tags: [Authentication]
+ *     description: Public endpoint untuk login. Tidak memerlukan token untuk mengakses.
  *     requestBody:
  *       required: true
  *       content:
@@ -137,8 +139,9 @@ router.post('/auth/login', login)
  * @swagger
  * /auth/token:
  *   post:
- *     summary: OAuth2 Token endpoint (for Swagger OAuth2 flow)
+ *     summary: OAuth2 Token endpoint for Swagger authorization (Public endpoint)
  *     tags: [Authentication]
+ *     description: Public endpoint khusus untuk Swagger UI OAuth2 flow. Tidak memerlukan authentication sebelumnya.
  *     requestBody:
  *       required: true
  *       content:
@@ -286,10 +289,11 @@ router.get('/auth/users/:id', authenticateJWT, isAdmin, getUserById)
  *   post:
  *     summary: Refresh access token
  *     tags: [Authentication]
+ *     description: Public endpoint untuk refresh access token menggunakan refresh token.
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         application/x-www-form-urlencoded:
  *           schema:
  *             type: object
  *             required:
@@ -297,7 +301,8 @@ router.get('/auth/users/:id', authenticateJWT, isAdmin, getUserById)
  *             properties:
  *               refreshToken:
  *                 type: string
- *                 description: The refresh token
+ *                 description: The refresh token yang didapat saat login
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *     responses:
  *       200:
  *         description: New access and refresh tokens
@@ -306,16 +311,62 @@ router.get('/auth/users/:id', authenticateJWT, isAdmin, getUserById)
  *             schema:
  *               type: object
  *               properties:
- *                 accessToken:
+ *                 message:
  *                   type: string
- *                 refreshToken:
- *                   type: string
+ *                   example: "Token refreshed successfully"
+ *                 tokens:
+ *                   type: object
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *                     refreshToken:
+ *                       type: string
  *       400:
  *         description: Bad request (missing refresh token)
  *       401:
  *         description: Invalid or expired refresh token
  */
 router.post('/auth/refresh-token', refreshToken);
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout user and invalidate refresh token
+ *     tags: [Authentication]
+ *     description: |
+ *       Public endpoint untuk logout. Invalidate refresh token untuk logout.
+ *       Access token akan expire secara natural sesuai dengan expiry time-nya.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: The refresh token to invalidate (didapat saat login)
+ *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *     responses:
+ *       200:
+ *         description: Logout successful, token invalidated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Logout berhasil. Token telah di-invalidate."
+ *       400:
+ *         description: Bad request (missing refresh token)
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/auth/logout', logout);
 
 /**
  * @swagger

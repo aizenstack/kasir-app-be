@@ -11,7 +11,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "build": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "create:admin": "node scripts/createAdmin.js"
   },
   "keywords": [],
   "author": "",

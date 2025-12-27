@@ -8,6 +8,7 @@ const {
   updateUser,
   deleteUser,
 } = require("../models/AuthModels");
+const prisma = require("../utils/client");
 
 exports.register = async (req, res) => {
   try {
@@ -31,7 +32,6 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters long" });
     }
 
-    // Default role to 'petugas' if not provided, but allow override
     let userRole = "petugas";
     if (role) {
       if (role !== "administrator" && role !== "petugas") {
@@ -164,7 +164,6 @@ exports.updateUser = async (req, res) => {
     const updateData = {};
 
     if (username) {
-      // Check if username already exists (excluding current user)
       const userWithUsername = await findUserByUsername(username);
       if (userWithUsername && userWithUsername.id !== userId) {
         return res.status(400).json({ message: "Username already exists" });
@@ -218,7 +217,6 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Prevent deleting own account
     if (req.user && req.user.id === userId) {
       return res.status(400).json({
         message: "Cannot delete your own account",
@@ -236,12 +234,10 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// OAuth2 Token endpoint for Swagger OAuth2 Password flow
 exports.oauth2Token = async (req, res) => {
   try {
     const { username, password, grant_type } = req.body;
 
-    // OAuth2 Password flow requires grant_type=password
     if (grant_type !== 'password') {
       return res.status(400).json({
         error: 'unsupported_grant_type',
@@ -274,11 +270,26 @@ exports.oauth2Token = async (req, res) => {
       });
     }
 
+    if (!process.env.JWT_SECRET) {
+      console.error("OAuth2 Error: JWT_SECRET is not configured");
+      return res.status(500).json({
+        error: 'server_error',
+        error_description: 'JWT_SECRET is not configured. Please check your environment variables.'
+      });
+    }
+
+    if (!process.env.JWT_REFRESH_SECRET) {
+      console.error("OAuth2 Error: JWT_REFRESH_SECRET is not configured");
+      return res.status(500).json({
+        error: 'server_error',
+        error_description: 'JWT_REFRESH_SECRET is not configured. Please check your environment variables.'
+      });
+    }
+
     const tokens = await generateTokens(user);
 
-    // Calculate expires_in in seconds (default 24h = 86400 seconds)
-    const expiresIn = process.env.JWT_EXPIRES_IN || "24h";
-    let expiresInSeconds = 86400; // default 24 hours
+    const expiresIn = process.env.JWT_EXPIRES_IN || "15m";
+    let expiresInSeconds = 900; // default 15 minutes
     if (expiresIn.endsWith('h')) {
       expiresInSeconds = parseInt(expiresIn) * 3600;
     } else if (expiresIn.endsWith('m')) {
@@ -287,7 +298,6 @@ exports.oauth2Token = async (req, res) => {
       expiresInSeconds = parseInt(expiresIn) * 86400;
     }
 
-    // Return OAuth2 standard format
     return res.status(200).json({
       access_token: tokens.accessToken,
       token_type: 'bearer',
@@ -297,9 +307,16 @@ exports.oauth2Token = async (req, res) => {
     });
   } catch (error) {
     console.error("OAuth2 token error:", error);
+    console.error("Error stack:", error.stack);
+    
+    const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+    
     return res.status(500).json({
       error: 'server_error',
-      error_description: 'Internal server error'
+      error_description: isDevelopment 
+        ? `Internal server error: ${error.message}` 
+        : 'Internal server error',
+      ...(isDevelopment && { details: error.stack })
     });
   }
 };
@@ -322,6 +339,47 @@ exports.refreshToken = async (req, res) => {
     console.error('Refresh token error:', error);
     return res.status(401).json({
       message: error.message || 'Invalid refresh token'
+    });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const { refreshToken: token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ 
+        message: 'Refresh token is required' 
+      });
+    }
+    
+    // Cari refresh token di database
+    const refreshTokenRecord = await prisma.refreshToken.findUnique({
+      where: { token: token }
+    });
+
+    if (refreshTokenRecord) {
+      // Hapus refresh token dari database (invalidate)
+      await prisma.refreshToken.delete({
+        where: { id: refreshTokenRecord.id }
+      });
+      
+      return res.status(200).json({
+        message: 'Logout berhasil. Token telah di-invalidate.'
+      });
+    }
+
+    // Jika token tidak ditemukan, tetap return success
+    // (untuk security, tidak reveal apakah token valid atau tidak)
+    return res.status(200).json({
+      message: 'Logout berhasil'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    console.error('Error details:', error.message);
+    // Tetap return success untuk security
+    return res.status(200).json({
+      message: 'Logout berhasil'
     });
   }
 };
