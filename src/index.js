@@ -4,24 +4,19 @@ const { getCorsOrigin, initEnv } = require("./config/env");
 
 const app = express();
 
-// Load dotenv untuk development (local)
-// Di Vercel, environment variables sudah tersedia via process.env
+
 if (process.env.VERCEL !== '1') {
   try {
     require('dotenv').config();
   } catch (e) {
-    // dotenv tidak tersedia, skip
   }
 }
 
-// Initialize dan validasi environment configuration
-// Di production (Vercel), ini akan throw error jika required vars missing
+
 try {
   initEnv();
 } catch (error) {
-  console.error('❌ Environment initialization failed:', error.message);
-  // Di development, continue dengan warning
-  // Di production, akan throw error dan fail fast
+  console.error(' Environment initialization failed:', error.message);
   if (process.env.NODE_ENV === 'production') {
     throw error;
   }
