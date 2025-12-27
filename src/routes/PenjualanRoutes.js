@@ -13,7 +13,7 @@ const router = express.Router();
  * @swagger
  * /penjualan:
  *   post:
- *     summary: Create a new sale
+ *     summary: Create a new sales
  *     tags: [Penjualan]
  *     security:
  *       - OAuth2Password: []
@@ -24,27 +24,168 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - pelanggan_id
  *               - tanggal_penjualan
- *               - total
+ *               - detail_penjualan
  *             properties:
- *               pelanggan_id:
- *                 type: integer
- *                 example: 1
  *               tanggal_penjualan:
  *                 type: string
  *                 format: date-time
- *                 example: "2024-01-01T00:00:00Z"
- *               total:
- *                 type: number
- *                 example: 100000
+ *                 description: Tanggal penjualan (required)
+ *                 example: "2024-12-27T10:00:00Z"
+ *               pelanggan_id:
+ *                 type: integer
+ *                 nullable: true
+ *                 description: ID pelanggan (optional, null atau kosong untuk walk-in customer)
+ *                 example: 1
+ *               detail_penjualan:
+ *                 type: array
+ *                 minItems: 1
+ *                 description: |
+ *                   Array of detail penjualan (REQUIRED, minimal 1 item).
+ *                   Format: detail_penjualan[0][produk_id]=1&detail_penjualan[0][jumlah_produk]=2
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - produk_id
+ *                     - jumlah_produk
+ *                   properties:
+ *                     produk_id:
+ *                       type: integer
+ *                       description: ID produk yang dibeli (harus ada di database)
+ *                       example: 1
+ *                     jumlah_produk:
+ *                       type: integer
+ *                       minimum: 1
+ *                       description: Jumlah produk yang dibeli (must be > 0, tidak boleh melebihi stok)
+ *                       example: 2
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tanggal_penjualan
+ *               - detail_penjualan
+ *             properties:
+ *               tanggal_penjualan:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Tanggal penjualan (required)
+ *                 example: "2024-12-27T10:00:00Z"
+ *               pelanggan_id:
+ *                 type: integer
+ *                 nullable: true
+ *                 description: ID pelanggan (optional, null atau kosong untuk walk-in customer)
+ *                 example: 1
+ *               detail_penjualan:
+ *                 type: array
+ *                 minItems: 1
+ *                 description: |
+ *                   Array of detail penjualan (REQUIRED, minimal 1 item).
+ *                   Setiap item harus memiliki produk_id dan jumlah_produk.
+ *                   Total harga akan dihitung otomatis berdasarkan harga produk.
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - produk_id
+ *                     - jumlah_produk
+ *                   properties:
+ *                     produk_id:
+ *                       type: integer
+ *                       description: ID produk yang dibeli (harus ada di database)
+ *                       example: 1
+ *                     jumlah_produk:
+ *                       type: integer
+ *                       minimum: 1
+ *                       description: Jumlah produk yang dibeli (must be > 0, tidak boleh melebihi stok)
+ *                       example: 2
+ *           examples:
+ *             singleProduct:
+ *               summary: Single product sale
+ *               value:
+ *                 tanggal_penjualan: "2024-12-27T10:00:00Z"
+ *                 pelanggan_id: 1
+ *                 detail_penjualan:
+ *                   - produk_id: 1
+ *                     jumlah_produk: 2
+ *             multipleProducts:
+ *               summary: Multiple products sale
+ *               value:
+ *                 tanggal_penjualan: "2024-12-27T10:00:00Z"
+ *                 pelanggan_id: 1
+ *                 detail_penjualan:
+ *                   - produk_id: 1
+ *                     jumlah_produk: 2
+ *                   - produk_id: 2
+ *                     jumlah_produk: 3
+ *             walkInCustomer:
+ *               summary: Walk-in customer (no pelanggan_id)
+ *               value:
+ *                 tanggal_penjualan: "2024-12-27T10:00:00Z"
+ *                 detail_penjualan:
+ *                   - produk_id: 1
+ *                     jumlah_produk: 1
  *     responses:
  *       201:
  *         description: Sale created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Penjualan created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     tanggal_penjualan:
+ *                       type: string
+ *                       format: date-time
+ *                     total_harga:
+ *                       type: number
+ *                     pelanggan_id:
+ *                       type: integer
+ *                       nullable: true
+ *                     detailPenjualan:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           produk_id:
+ *                             type: integer
+ *                           jumlah_produk:
+ *                             type: integer
+ *                           subtotal:
+ *                             type: number
+ *                           produk:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                               nama_produk:
+ *                                 type: string
+ *                               harga:
+ *                                 type: number
  *       400:
- *         description: Bad request
+ *         description: Bad request (missing required fields, invalid data, or insufficient stock)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   examples:
+ *                     - "Tanggal penjualan and detail penjualan are required"
+ *                     - "Produk ID and jumlah produk are required and jumlah must be greater than 0"
+ *                     - "Insufficient stock for produk X. Available: 5, Requested: 10"
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized (missing or invalid token)
+ *       404:
+ *         description: Product not found
  *       500:
  *         description: Internal server error
  */
