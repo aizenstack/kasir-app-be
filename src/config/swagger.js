@@ -34,11 +34,11 @@ const options = {
         },
       },
     },
-    security: [
-      {
-        OAuth2Password: [],
-      },
-    ],
+    // security: [
+    //   {
+    //     OAuth2Password: [],
+    //   },
+    // ],
   },
   apis: ["./src/routes/*.js", "./src/controllers/*.js"], // Path to the API files
 };
