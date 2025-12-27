@@ -2,6 +2,7 @@ const dotenv = require("dotenv");
 
 dotenv.config();
 const jwt = require("jsonwebtoken");
+const prisma = require("../utils/client");
 
 exports.authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -55,16 +56,96 @@ exports.authorizeRole = (roles = []) => {
   };
 };
 
-exports.generateTokens = (user) => {
+// exports.generateTokens = (user) => {
+//   const accessToken = jwt.sign(
+//     { id: user.id, username: user.username, role: user.role },
+//     process.env.JWT_SECRET,
+//     { expiresIn: process.env.JWT_EXPIRES_IN || "24h" } // Default 24 hours for development
+//   );
+
+//   const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+//     expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+//   });
+
+//   return { accessToken, refreshToken };
+// };
+
+exports.generateTokens = async (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET is not configured');
+  }
+
   const accessToken = jwt.sign(
     { id: user.id, username: user.username, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || "24h" } // Default 24 hours for development
+    { expiresIn: process.env.JWT_EXPIRES_IN || "15m" }
   );
 
-  const refreshToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+  const refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+  const refreshToken = jwt.sign(
+    { id: user.id },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: refreshExpiresIn }
+  );
+
+  let expiresAt = new Date();
+  if (refreshExpiresIn.endsWith('d')) {
+    expiresAt.setDate(expiresAt.getDate() + parseInt(refreshExpiresIn));
+  } else if (refreshExpiresIn.endsWith('h')) {
+    expiresAt.setHours(expiresAt.getHours() + parseInt(refreshExpiresIn));
+  } else if (refreshExpiresIn.endsWith('m')) {
+    expiresAt.setMinutes(expiresAt.getMinutes() + parseInt(refreshExpiresIn));
+  } else {
+    expiresAt.setDate(expiresAt.getDate() + 1);
+  }
+
+  await prisma.refreshToken.create({
+    data: {
+      token: refreshToken,
+      userId: user.id,
+      expiresAt: expiresAt
+    }
   });
 
   return { accessToken, refreshToken };
+};
+
+exports.refreshTokens = async (refreshToken) => {
+  try {
+    if (!process.env.JWT_REFRESH_SECRET) {
+      throw new Error('JWT_REFRESH_SECRET is not configured');
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    
+    const token = await prisma.refreshToken.findUnique({
+      where: { token: refreshToken },
+      include: { user: true }
+    });
+
+    if (!token) {
+      throw new Error('Refresh token not found');
+    }
+
+    if (token.expiresAt < new Date()) {
+      await prisma.refreshToken.delete({ where: { id: token.id } }).catch(() => {});
+      throw new Error('Refresh token has expired');
+    }
+
+    const user = token.user;
+    const tokens = await exports.generateTokens(user);
+
+    await prisma.refreshToken.delete({ where: { id: token.id } }).catch(() => {});
+
+    return tokens;
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      throw new Error('Invalid or expired refresh token');
+    }
+    throw error;
+  }
 };
