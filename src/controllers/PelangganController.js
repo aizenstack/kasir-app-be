@@ -8,32 +8,57 @@ const {
 
 exports.createPelanggan = async (req, res) => {
   try {
-    const { nama_pelanggan, alamat, telepon } = req.body;
+    const { 
+      nama_pelanggan, 
+      nama,  
+      alamat, 
+      telepon,
+      no_telp 
+    } = req.body;
 
-    if (!nama_pelanggan || !alamat || !telepon) {
+    const finalNamaPelanggan = nama_pelanggan || nama;
+    
+    if (!finalNamaPelanggan) {
       return res
         .status(400)
-        .json({ message: "All fields are required" });
+        .json({ message: "Nama pelanggan is required" });
     }
 
-    // Validasi tipe data
-    if (typeof nama_pelanggan !== 'string' || nama_pelanggan.trim() === '') {
+    if (typeof finalNamaPelanggan !== 'string' || finalNamaPelanggan.trim() === '') {
       return res.status(400).json({ message: "Nama pelanggan must be a non-empty string" });
     }
 
-    if (typeof alamat !== 'string' || alamat.trim() === '') {
-      return res.status(400).json({ message: "Alamat must be a non-empty string" });
+    const finalTelepon = telepon || no_telp;
+
+    if (alamat !== undefined && alamat !== null && alamat !== '') {
+      if (typeof alamat !== 'string') {
+        return res.status(400).json({ message: "Alamat must be a string" });
+      }
     }
 
-    if (typeof telepon !== 'string' || telepon.trim() === '') {
-      return res.status(400).json({ message: "Telepon must be a non-empty string" });
+    if (finalTelepon !== undefined && finalTelepon !== null && finalTelepon !== '') {
+      if (typeof finalTelepon !== 'string') {
+        return res.status(400).json({ message: "Telepon must be a string" });
+      }
     }
 
-    const newPelanggan = await createPelanggan({
-      nama_pelanggan: nama_pelanggan.trim(),
-      alamat: alamat.trim(),
-      telepon: telepon.trim(),
-    });
+    const pelangganData = {
+      nama_pelanggan: finalNamaPelanggan.trim(),
+    };
+
+    if (alamat !== undefined && alamat !== null && alamat !== '') {
+      pelangganData.alamat = alamat.trim();
+    } else {
+      pelangganData.alamat = '';
+    }
+
+    if (finalTelepon !== undefined && finalTelepon !== null && finalTelepon !== '') {
+      pelangganData.telepon = finalTelepon.trim();
+    } else {
+      pelangganData.telepon = ''; 
+    }
+
+    const newPelanggan = await createPelanggan(pelangganData);
 
     return res.status(201).json({
       message: "Pelanggan created successfully",

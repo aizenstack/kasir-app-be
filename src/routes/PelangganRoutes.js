@@ -25,17 +25,26 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - nama
- *               - alamat
- *               - no_telp
  *             properties:
  *               nama:
  *                 type: string
+ *                 description: Nama pelanggan (required) - juga bisa menggunakan nama_pelanggan
+ *                 example: "John Doe"
+ *               nama_pelanggan:
+ *                 type: string
+ *                 description: Nama pelanggan (required) - alternative field name
  *                 example: "John Doe"
  *               alamat:
  *                 type: string
+ *                 description: Alamat pelanggan (optional)
  *                 example: "Jl. Contoh No. 123"
+ *               telepon:
+ *                 type: string
+ *                 description: Nomor telepon pelanggan (optional) - juga bisa menggunakan no_telp
+ *                 example: "081234567890"
  *               no_telp:
  *                 type: string
+ *                 description: Nomor telepon pelanggan (optional) - alternative field name
  *                 example: "081234567890"
  *     responses:
  *       201:
@@ -69,11 +78,11 @@ router.post("/pelanggan", authenticateJWT, createPelanggan);
  *                 properties:
  *                   id:
  *                     type: integer
- *                   nama:
+ *                   nama_pelanggan:
  *                     type: string
  *                   alamat:
  *                     type: string
- *                   no_telp:
+ *                   telepon:
  *                     type: string
  *       401:
  *         description: Unauthorized

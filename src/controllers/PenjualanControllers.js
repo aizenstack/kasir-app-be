@@ -14,28 +14,127 @@ const prisma = require("../utils/client");
 
 exports.createPenjualan = async (req, res) => {
   try {
-    const { tanggal_penjualan, pelanggan_id, detail_penjualan } = req.body;
+    let { tanggal_penjualan, pelanggan_id, detail_penjualan } = req.body;
 
-    if (!tanggal_penjualan || !detail_penjualan || !Array.isArray(detail_penjualan) || detail_penjualan.length === 0) {
+    if (tanggal_penjualan) {
+      if (typeof tanggal_penjualan === 'string') {
+        tanggal_penjualan = tanggal_penjualan.trim();
+        if (tanggal_penjualan === '') {
+          tanggal_penjualan = null;
+        }
+      }
+    } else {
+      tanggal_penjualan = null;
+    }
+
+    if (detail_penjualan && !Array.isArray(detail_penjualan)) {
+
+      if (typeof detail_penjualan === 'string') {
+        try {
+          const trimmed = detail_penjualan.trim();
+          if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') {
+            detail_penjualan = null;
+          } else {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              detail_penjualan = parsed;
+            } else if (parsed && typeof parsed === 'object' && parsed.produk_id && parsed.jumlah_produk) {
+              detail_penjualan = [parsed];
+            } else {
+              detail_penjualan = null;
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to parse detail_penjualan as JSON:", e.message);
+          detail_penjualan = null;
+        }
+      } else if (typeof detail_penjualan === 'object' && detail_penjualan !== null) {
+        const keys = Object.keys(detail_penjualan);
+        const isArrayLike = keys.every(key => !isNaN(parseInt(key)));
+        
+        if (isArrayLike && keys.length > 0) {
+          const detailArray = [];
+          const sortedKeys = keys.sort((a, b) => parseInt(a) - parseInt(b));
+          for (const key of sortedKeys) {
+            const item = detail_penjualan[key];
+            if (item && typeof item === 'object' && item.produk_id && item.jumlah_produk) {
+              detailArray.push({
+                produk_id: parseInt(item.produk_id),
+                jumlah_produk: parseInt(item.jumlah_produk)
+              });
+            }
+          }
+          detail_penjualan = detailArray.length > 0 ? detailArray : null;
+        } else if (detail_penjualan.produk_id && detail_penjualan.jumlah_produk) {
+          detail_penjualan = [{
+            produk_id: parseInt(detail_penjualan.produk_id),
+            jumlah_produk: parseInt(detail_penjualan.jumlah_produk)
+          }];
+        } else {
+          detail_penjualan = null;
+        }
+      } else {
+        detail_penjualan = null;
+      }
+    }
+
+    if (!tanggal_penjualan) {
       return res.status(400).json({
-        message: "Tanggal penjualan and detail penjualan are required",
+        message: "Tanggal penjualan is required",
       });
     }
 
-    // Validasi dan hitung total harga
+    const tanggalDate = new Date(tanggal_penjualan);
+    if (isNaN(tanggalDate.getTime())) {
+      return res.status(400).json({
+        message: "Invalid tanggal_penjualan format. Use ISO 8601 format (e.g., 2024-12-27T10:00:00Z)",
+      });
+    }
+
+    if (!detail_penjualan || !Array.isArray(detail_penjualan) || detail_penjualan.length === 0) {
+      return res.status(400).json({
+        message: "Detail penjualan is required and must be a non-empty array",
+      });
+    }
+
     let total_harga = 0;
     const detailPenjualanData = [];
 
     for (const detail of detail_penjualan) {
-      const { produk_id, jumlah_produk } = detail;
-
-      if (!produk_id || !jumlah_produk || jumlah_produk <= 0) {
+      if (!detail || typeof detail !== 'object') {
         return res.status(400).json({
-          message: "Produk ID and jumlah produk are required and jumlah must be greater than 0",
+          message: "Invalid detail_penjualan format. Each item must be an object with produk_id and jumlah_produk",
         });
       }
 
-      // Cek produk dan stok
+      let { produk_id, jumlah_produk } = detail;
+
+      if (produk_id === undefined || produk_id === null || produk_id === '') {
+        return res.status(400).json({
+          message: "Produk ID is required in detail_penjualan",
+        });
+      }
+      
+      produk_id = parseInt(produk_id);
+      if (isNaN(produk_id) || produk_id <= 0) {
+        return res.status(400).json({
+          message: "Produk ID must be a positive integer",
+        });
+      }
+
+      if (jumlah_produk === undefined || jumlah_produk === null || jumlah_produk === '') {
+        return res.status(400).json({
+          message: "Jumlah produk is required in detail_penjualan",
+        });
+      }
+      
+      jumlah_produk = parseInt(jumlah_produk);
+      if (isNaN(jumlah_produk) || jumlah_produk <= 0) {
+        return res.status(400).json({
+          message: "Jumlah produk must be a positive integer greater than 0",
+        });
+      }
+
       const produk = await getProdukById(produk_id);
       if (!produk) {
         return res.status(404).json({
@@ -50,6 +149,12 @@ exports.createPenjualan = async (req, res) => {
       }
 
       const subtotal = parseFloat(produk.harga) * jumlah_produk;
+      if (isNaN(subtotal)) {
+        return res.status(400).json({
+          message: `Invalid harga for produk ${produk.nama_produk}`,
+        });
+      }
+
       total_harga += subtotal;
 
       detailPenjualanData.push({
@@ -59,14 +164,20 @@ exports.createPenjualan = async (req, res) => {
       });
     }
 
-    // Buat penjualan dan detail penjualan dalam transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create penjualan
+      let finalPelangganId = null;
+      if (pelanggan_id !== undefined && pelanggan_id !== null && pelanggan_id !== '') {
+        const pelId = parseInt(pelanggan_id);
+        if (!isNaN(pelId) && pelId > 0) {
+          finalPelangganId = pelId;
+        }
+      }
+
       const newPenjualan = await tx.penjualan.create({
         data: {
-          tanggal_penjualan: new Date(tanggal_penjualan),
+          tanggal_penjualan: tanggalDate,
           total_harga: total_harga,
-          pelanggan_id: pelanggan_id || null,
+          pelanggan_id: finalPelangganId,
         },
         select: {
           id: true,
@@ -85,7 +196,6 @@ exports.createPenjualan = async (req, res) => {
         },
       });
 
-      // Create detail penjualan dan update stok produk
       const detailWithPenjualanId = detailPenjualanData.map((detail) => ({
         ...detail,
         penjualan_id: newPenjualan.id,
@@ -108,7 +218,6 @@ exports.createPenjualan = async (req, res) => {
         });
       }
 
-      // Get detail penjualan dengan produk info
       const detailPenjualan = await tx.detail_penjualan.findMany({
         where: { penjualan_id: newPenjualan.id },
         include: {
@@ -134,8 +243,34 @@ exports.createPenjualan = async (req, res) => {
     });
   } catch (error) {
     console.error("Create penjualan error:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Request body:", req.body);
+    
+
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        message: "Duplicate entry. Penjualan dengan data yang sama sudah ada.",
+      });
+    }
+    
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        message: "Foreign key constraint failed. Pastikan produk_id dan pelanggan_id valid.",
+      });
+    }
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        message: error.message || "Validation error",
+      });
+    }
+    
     return res.status(500).json({
       message: "Internal Server Error",
+      ...(process.env.NODE_ENV === 'development' && { 
+        error: error.message,
+        stack: error.stack 
+      }),
     });
   }
 };
