@@ -14,8 +14,8 @@ const options = {
     },
     servers: [
       {
-        url: process.env.API_URL || 'http://localhost:3000',
-        description: 'Development server',
+        url: require('./env').getApiUrl(),
+        description: require('./env').isProduction() ? 'Production server' : 'Development server',
       },
     ],
     components: {
@@ -24,7 +24,7 @@ const options = {
           type: "oauth2",
           flows: {
             password: {
-              tokenUrl: process.env.API_URL ? `${process.env.API_URL}/auth/token` : "http://localhost:3000/auth/token",
+              tokenUrl: `${require('./env').getApiUrl()}/auth/token`,
               scopes: {
                 administrator: "Administrator access",
                 petugas: "Petugas access"

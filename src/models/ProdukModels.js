@@ -9,7 +9,7 @@ exports.createProduk = (data) => {
       harga: true,
       stok: true,
       createdAt: true,
-      updateAt: true,
+      updatedAt: true,
     },
   });
 };
@@ -29,7 +29,7 @@ exports.getProdukById = (id) => {
       harga: true,
       stok: true,
       createdAt: true,
-      updateAt: true,
+      updatedAt: true,
     },
   });
 };
@@ -46,7 +46,7 @@ exports.updateProduk = (id, data) => {
       harga: true,
       stok: true,
       createdAt: true,
-      updateAt: true,
+      updatedAt: true,
     },
   });
 };
@@ -62,7 +62,7 @@ exports.deleteProduk = (id) => {
       harga: true,
       stok: true,
       createdAt: true,
-      updateAt: true,
+      updatedAt: true,
     },
   });
 };

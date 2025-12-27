@@ -20,43 +20,52 @@ exports.createDetailPenjualan = async (req, res) => {
       });
     }
 
-    if (jumlah_produk <= 0) {
+    const penjualanId = parseInt(penjualan_id);
+    const produkId = parseInt(produk_id);
+    const jumlahNum = parseInt(jumlah_produk);
+
+    if (isNaN(penjualanId)) {
+      return res.status(400).json({ message: "Invalid penjualan ID" });
+    }
+
+    if (isNaN(produkId)) {
+      return res.status(400).json({ message: "Invalid produk ID" });
+    }
+
+    if (isNaN(jumlahNum) || jumlahNum <= 0) {
       return res.status(400).json({
-        message: "Jumlah produk must be greater than 0",
+        message: "Jumlah produk must be a positive integer",
       });
     }
 
-    // Cek penjualan exists
-    const penjualan = await getPenjualanById(penjualan_id);
+    const penjualan = await getPenjualanById(penjualanId);
     if (!penjualan) {
       return res.status(404).json({
         message: "Penjualan Not Found",
       });
     }
 
-    // Cek produk dan stok
-    const produk = await getProdukById(produk_id);
+    const produk = await getProdukById(produkId);
     if (!produk) {
       return res.status(404).json({
         message: "Produk Not Found",
       });
     }
 
-    if (produk.stok < jumlah_produk) {
+    if (produk.stok < jumlahNum) {
       return res.status(400).json({
-        message: `Insufficient stock. Available: ${produk.stok}, Requested: ${jumlah_produk}`,
+        message: `Insufficient stock. Available: ${produk.stok}, Requested: ${jumlahNum}`,
       });
     }
 
-    const subtotal = parseFloat(produk.harga) * jumlah_produk;
+    const subtotal = parseFloat(produk.harga) * jumlahNum;
 
-    // Create detail penjualan dan update stok dalam transaction
     const result = await prisma.$transaction(async (tx) => {
       const newDetailPenjualan = await tx.detail_penjualan.create({
         data: {
-          penjualan_id: parseInt(penjualan_id),
-          produk_id: parseInt(produk_id),
-          jumlah_produk,
+          penjualan_id: penjualanId,
+          produk_id: produkId,
+          jumlah_produk: jumlahNum,
           subtotal,
         },
         include: {
@@ -70,18 +79,16 @@ exports.createDetailPenjualan = async (req, res) => {
         },
       });
 
-      // Update stok produk
       await tx.produk.update({
-        where: { id: parseInt(produk_id) },
+        where: { id: produkId },
         data: {
-          stok: produk.stok - jumlah_produk,
+          stok: produk.stok - jumlahNum,
         },
       });
 
-      // Update total harga penjualan
       const currentTotal = parseFloat(penjualan.total_harga);
       await tx.penjualan.update({
-        where: { id: parseInt(penjualan_id) },
+        where: { id: penjualanId },
         data: {
           total_harga: currentTotal + subtotal,
         },
@@ -106,6 +113,7 @@ exports.getAllDetailPenjualan = async (req, res) => {
   try {
     const data = await getAllDetailPenjualan();
     return res.status(200).json({
+      message: "Detail Penjualan retrieved successfully",
       data,
     });
   } catch (error) {
@@ -119,8 +127,13 @@ exports.getAllDetailPenjualan = async (req, res) => {
 exports.getDetailPenjualanById = async (req, res) => {
   try {
     const { id } = req.params;
+    const detailId = parseInt(id);
 
-    const detailPenjualan = await getDetailPenjualanById(id);
+    if (isNaN(detailId)) {
+      return res.status(400).json({ message: "Invalid detail penjualan ID" });
+    }
+
+    const detailPenjualan = await getDetailPenjualanById(detailId);
 
     if (!detailPenjualan) {
       return res.status(404).json({
@@ -129,6 +142,7 @@ exports.getDetailPenjualanById = async (req, res) => {
     }
 
     return res.status(200).json({
+      message: "Detail Penjualan retrieved successfully",
       data: detailPenjualan,
     });
   } catch (error) {
@@ -142,10 +156,16 @@ exports.getDetailPenjualanById = async (req, res) => {
 exports.getDetailPenjualanByPenjualanId = async (req, res) => {
   try {
     const { penjualan_id } = req.params;
+    const penjualanId = parseInt(penjualan_id);
 
-    const detailPenjualan = await getDetailPenjualanByPenjualanId(penjualan_id);
+    if (isNaN(penjualanId)) {
+      return res.status(400).json({ message: "Invalid penjualan ID" });
+    }
+
+    const detailPenjualan = await getDetailPenjualanByPenjualanId(penjualanId);
 
     return res.status(200).json({
+      message: "Detail Penjualan retrieved successfully",
       data: detailPenjualan,
     });
   } catch (error) {
@@ -160,8 +180,13 @@ exports.updateDetailPenjualan = async (req, res) => {
   try {
     const { id } = req.params;
     const { produk_id, jumlah_produk } = req.body;
+    const detailId = parseInt(id);
 
-    const existingDetailPenjualan = await getDetailPenjualanById(id);
+    if (isNaN(detailId)) {
+      return res.status(400).json({ message: "Invalid detail penjualan ID" });
+    }
+
+    const existingDetailPenjualan = await getDetailPenjualanById(detailId);
     if (!existingDetailPenjualan) {
       return res.status(404).json({
         message: "Detail Penjualan Not Found",
@@ -174,52 +199,54 @@ exports.updateDetailPenjualan = async (req, res) => {
       });
     }
 
-    // Jika jumlah_produk diubah, perlu update subtotal dan total penjualan
     let newSubtotal = existingDetailPenjualan.subtotal;
     let produk = await getProdukById(existingDetailPenjualan.produk_id);
 
-    if (jumlah_produk) {
-      if (jumlah_produk <= 0) {
+    let jumlahNum = existingDetailPenjualan.jumlah_produk;
+    if (jumlah_produk !== undefined) {
+      jumlahNum = parseInt(jumlah_produk);
+      if (isNaN(jumlahNum) || jumlahNum <= 0) {
         return res.status(400).json({
-          message: "Jumlah produk must be greater than 0",
+          message: "Jumlah produk must be a positive integer",
         });
       }
 
-      // Cek stok jika jumlah_produk berubah
-      const stokDifference = jumlah_produk - existingDetailPenjualan.jumlah_produk;
+      const stokDifference = jumlahNum - existingDetailPenjualan.jumlah_produk;
       if (stokDifference > 0 && produk.stok < stokDifference) {
         return res.status(400).json({
           message: `Insufficient stock. Available: ${produk.stok}, Needed: ${stokDifference}`,
         });
       }
 
-      newSubtotal = parseFloat(produk.harga) * jumlah_produk;
+      newSubtotal = parseFloat(produk.harga) * jumlahNum;
     }
 
-    if (produk_id && produk_id !== existingDetailPenjualan.produk_id) {
-      const newProduk = await getProdukById(produk_id);
-      if (!newProduk) {
-        return res.status(404).json({
-          message: "Produk Not Found",
-        });
+    let produkId = existingDetailPenjualan.produk_id;
+    if (produk_id !== undefined) {
+      produkId = parseInt(produk_id);
+      if (isNaN(produkId)) {
+        return res.status(400).json({ message: "Invalid produk ID" });
       }
-      produk = newProduk;
-      if (jumlah_produk) {
-        newSubtotal = parseFloat(newProduk.harga) * jumlah_produk;
-      } else {
-        newSubtotal = parseFloat(newProduk.harga) * existingDetailPenjualan.jumlah_produk;
+      if (produkId !== existingDetailPenjualan.produk_id) {
+        const newProduk = await getProdukById(produkId);
+        if (!newProduk) {
+          return res.status(404).json({
+            message: "Produk Not Found",
+          });
+        }
+        produk = newProduk;
+        newSubtotal = parseFloat(newProduk.harga) * jumlahNum;
       }
     }
 
     const updateData = {};
-    if (produk_id) updateData.produk_id = parseInt(produk_id);
-    if (jumlah_produk) updateData.jumlah_produk = jumlah_produk;
+    if (produk_id !== undefined) updateData.produk_id = produkId;
+    if (jumlah_produk !== undefined) updateData.jumlah_produk = jumlahNum;
     updateData.subtotal = newSubtotal;
 
-    // Update dalam transaction
     const result = await prisma.$transaction(async (tx) => {
       const updatedDetail = await tx.detail_penjualan.update({
-        where: { id: parseInt(id) },
+        where: { id: detailId },
         data: updateData,
         include: {
           produk: {
@@ -232,7 +259,6 @@ exports.updateDetailPenjualan = async (req, res) => {
         },
       });
 
-      // Update total harga penjualan
       const penjualan = await tx.penjualan.findUnique({
         where: { id: existingDetailPenjualan.penjualan_id },
       });
@@ -245,15 +271,14 @@ exports.updateDetailPenjualan = async (req, res) => {
         },
       });
 
-      // Update stok jika jumlah_produk berubah
-      if (jumlah_produk) {
-        const stokDifference = jumlah_produk - existingDetailPenjualan.jumlah_produk;
+      if (jumlah_produk !== undefined) {
+        const stokDifference = jumlahNum - existingDetailPenjualan.jumlah_produk;
         if (stokDifference !== 0) {
           const currentProduk = await tx.produk.findUnique({
-            where: { id: produk_id || existingDetailPenjualan.produk_id },
+            where: { id: produkId },
           });
           await tx.produk.update({
-            where: { id: produk_id || existingDetailPenjualan.produk_id },
+            where: { id: produkId },
             data: {
               stok: currentProduk.stok - stokDifference,
             },
@@ -280,7 +305,13 @@ exports.updateDetailPenjualan = async (req, res) => {
 exports.deleteDetailPenjualan = async (req, res) => {
   try {
     const { id } = req.params;
-    const existingDetailPenjualan = await getDetailPenjualanById(id);
+    const detailId = parseInt(id);
+
+    if (isNaN(detailId)) {
+      return res.status(400).json({ message: "Invalid detail penjualan ID" });
+    }
+
+    const existingDetailPenjualan = await getDetailPenjualanById(detailId);
     if (!existingDetailPenjualan) {
       return res.status(404).json({
         message: "Detail Penjualan Not Found",
@@ -313,7 +344,7 @@ exports.deleteDetailPenjualan = async (req, res) => {
 
       // Delete detail penjualan
       await tx.detail_penjualan.delete({
-        where: { id: parseInt(id) },
+        where: { id: detailId },
       });
     });
 

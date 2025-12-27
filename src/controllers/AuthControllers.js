@@ -1,5 +1,5 @@
 const bcrypt = require("bcrypt");
-const { generateTokens } = require("../middlewares/jwt");
+const { generateTokens, refreshTokens } = require("../middlewares/jwt");
 const {
   createUser,
   findUserByUsername,
@@ -11,7 +11,7 @@ const {
 
 exports.register = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, role } = req.body;
 
     if (!username || !password) {
       return res
@@ -19,18 +19,41 @@ exports.register = async (req, res) => {
         .json({ message: "Username & Password are required" });
     }
 
-    const existing = await findUserByUsername(username);
+    // Validasi username
+    if (typeof username !== 'string' || username.trim() === '') {
+      return res.status(400).json({ message: "Username must be a non-empty string" });
+    }
+
+    const trimmedUsername = username.trim();
+
+    // Validasi password
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+
+    // Default role to 'petugas' if not provided, but allow override
+    let userRole = "petugas";
+    if (role) {
+      if (role !== "administrator" && role !== "petugas") {
+        return res.status(400).json({
+          message: "Invalid role. Role must be 'administrator' or 'petugas'",
+        });
+      }
+      userRole = role;
+    }
+
+    const existing = await findUserByUsername(trimmedUsername);
     if (existing) {
       return res.status(400).json({ message: "Username already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await createUser({
-      username,
+      username: trimmedUsername,
       password: hashedPassword,
-      role: "petugas",
+      role: userRole,
     });
-    const tokens = generateTokens(newUser);
+    const tokens = await generateTokens(newUser);
 
     res.status(201).json({
       message: "User registered successfully",
@@ -39,6 +62,9 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     console.error("Register error:", error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: "Username already exists" });
+    }
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -65,7 +91,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Username atau Password salah" });
     }
 
-    const tokens = generateTokens(user);
+    const tokens = await generateTokens(user);
 
     return res.status(200).json({
       message: "Login berhasil",
@@ -217,7 +243,7 @@ exports.oauth2Token = async (req, res) => {
 
     // OAuth2 Password flow requires grant_type=password
     if (grant_type !== 'password') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'unsupported_grant_type',
         error_description: 'Only password grant type is supported'
       });
@@ -248,8 +274,8 @@ exports.oauth2Token = async (req, res) => {
       });
     }
 
-    const tokens = generateTokens(user);
-    
+    const tokens = await generateTokens(user);
+
     // Calculate expires_in in seconds (default 24h = 86400 seconds)
     const expiresIn = process.env.JWT_EXPIRES_IN || "24h";
     let expiresInSeconds = 86400; // default 24 hours
@@ -274,6 +300,28 @@ exports.oauth2Token = async (req, res) => {
     return res.status(500).json({
       error: 'server_error',
       error_description: 'Internal server error'
+    });
+  }
+};
+
+exports.refreshToken = async (req, res) => {
+  try {
+    const { refreshToken: token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Refresh token is required' });
+    }
+
+    const tokens = await refreshTokens(token);
+
+    return res.status(200).json({
+      message: 'Token refreshed successfully',
+      tokens
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    return res.status(401).json({
+      message: error.message || 'Invalid refresh token'
     });
   }
 };
