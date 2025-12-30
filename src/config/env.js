@@ -129,11 +129,11 @@ function initEnv() {
   try {
     validateRequiredEnvVars();
     
-    if (isDevelopment()) {
-      console.log('✅ Environment variables validated');
-      console.log(`📍 Environment: ${getEnvironment()}`);
-      console.log(`🌐 API URL: ${getApiUrl()}`);
-    }
+    // if (isDevelopment()) {
+    //   console.log('✅ Environment variables validated');
+    //   console.log(`📍 Environment: ${getEnvironment()}`);
+    //   console.log(`🌐 API URL: ${getApiUrl()}`);
+    // }
   } catch (error) {
     console.error('❌ Environment configuration error:');
     console.error(error.message);
