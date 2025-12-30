@@ -1,7 +1,7 @@
 # 🧾 SIKAS Backend - Sistem Informasi Kasir API
 
 Backend API untuk **Sistem Informasi Kasir (SIKAS)** yang menyediakan RESTful API untuk mengelola data penjualan, produk, pelanggan, dan manajemen pengguna.  
-Aplikasi ini dikembangkan menggunakan **Express.js**, **Prisma ORM**, dan **MySQL** dengan arsitektur yang scalable, maintainable, dan mengikuti best practices.
+Aplikasi ini dikembangkan menggunakan **Express.js**, **Prisma ORM**, dan **PostgreSQL** dengan arsitektur yang scalable, maintainable, dan mengikuti best practices.
 
 ---
 
