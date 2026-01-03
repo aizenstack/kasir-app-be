@@ -401,10 +401,8 @@ exports.deletePenjualan = async (req, res) => {
       });
     }
 
-    // Delete detail penjualan terlebih dahulu (akan otomatis terhapus karena cascade)
     await deleteDetailPenjualanByPenjualanId(penjualanId);
 
-    // Delete penjualan
     await deletePenjualan(penjualanId);
 
     return res.status(200).json({
@@ -440,7 +438,7 @@ exports.downloadNota = async (req, res) => {
       });
     }
 
-    const doc = new PDFDocument({ margin: 50 });
+    const doc = new PDFDocument({ margin: 30, size: "A4" }); 
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -450,80 +448,132 @@ exports.downloadNota = async (req, res) => {
 
     doc.pipe(res);
 
-    doc.fontSize(20).text("Detail Penjualan", { align: "center" });
-    doc.moveDown();
+    const startY = 30;
+    const pageWidth = 595.28; 
+    const margin = 30;
+    const contentWidth = pageWidth - margin * 2;
 
-    doc.fontSize(12).font("Helvetica-Bold").text("Data Pelanggan");
-    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown(0.5);
+    const cashierName = "Administrator";
+    const customerName = penjualan.pelanggan ? penjualan.pelanggan.nama_pelanggan : "Umum";
 
-    // Customer Data Body
-    const namaPelanggan = penjualan.pelanggan
-      ? penjualan.pelanggan.nama_pelanggan
-      : "Walk-in Customer";
-    const telepon = penjualan.pelanggan ? penjualan.pelanggan.telepon : "-";
-    const alamat = penjualan.pelanggan ? penjualan.pelanggan.alamat : "-";
+    const saleDate = new Date(penjualan.tanggal_penjualan);
+    const timeZone = 'Asia/Jakarta';
+    const formattedDate = saleDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone });
+    const formattedTime = saleDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone });
+    const invoiceNo = `${saleDate.getFullYear()}${(saleDate.getMonth() + 1).toString().padStart(2, 0)}${saleDate.getDate().toString().padStart(2, 0)}.${penjualan.id.toString().padStart(5, '0')}`;
 
-    doc.font("Helvetica").fontSize(10);
-    doc.text(`Nama Pelanggan: ${namaPelanggan}`);
-    doc.text(`Telepon: ${telepon}`, { align: "right" });
-    doc.moveUp(); 
-    doc.y = doc.y - 10;
-    doc.text(`Telepon: ${telepon}`, 400, doc.y);
-    doc.text(`Alamat: ${alamat}`, 50, doc.y + 15);
 
-    doc.moveDown(2);
 
-    doc.fontSize(12).font("Helvetica-Bold").text("Daftar Produk", 50);
-    doc.moveDown(0.5);
+    const fs = require('fs');
+    const path = require('path');
+    const logoPath = path.join(__dirname, '../assets/logo.png');
 
-    const tableTop = doc.y;
-    const itemX = 50;
-    const qtyX = 300;
-    const priceX = 350;
-    const subtotalX = 450;
+    const logoSize = 50;
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, margin, startY, { fit: [logoSize, logoSize] });
+    }
 
-    doc.fontSize(10).font("Helvetica-Bold");
-    doc.text("Nama Produk", itemX, tableTop);
-    doc.text("Qty", qtyX, tableTop);
-    doc.text("Harga Satuan", priceX, tableTop);
-    doc.text("Subtotal", subtotalX, tableTop);
+    doc.font("Helvetica-BoldOblique").fontSize(14).fillColor("#6a1b9a")
+      .text("Sistem Informasi Kasir", margin, startY + logoSize + 5);
 
-    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
-    doc.font("Helvetica");
-
-    let y = tableTop + 25;
-
-    penjualan.detailPenjualan.forEach((item) => {
-      doc.text(item.produk.nama_produk, itemX, y);
-      doc.text(item.jumlah_produk.toString(), qtyX, y);
-      doc.text(
-        `Rp ${parseFloat(item.produk.harga).toLocaleString("id-ID")}`,
-        priceX,
-        y
-      );
-      doc.text(
-        `Rp ${parseFloat(item.subtotal).toLocaleString("id-ID")}`,
-        subtotalX,
-        y
-      );
-      y += 20;
-    });
-
-    doc.moveDown();
-
-    doc.rect(50, y, 500, 30).fill("#f0f4f8");
     doc.fillColor("black");
 
-    doc.font("Helvetica-Bold").fontSize(12);
-    doc.text(
-      `Total Transaksi: Rp ${parseFloat(penjualan.total_harga).toLocaleString(
-        "id-ID"
-      )}`,
-      50,
-      y + 8,
-      { align: "right", width: 490 }
-    );
+    const metadataX = 400;
+    const metadataY = startY;
+    const lineHeight = 12;
+
+    doc.fontSize(9).font("Helvetica");
+
+    doc.text("No #", metadataX, metadataY);
+    doc.text(":", metadataX + 60, metadataY);
+    doc.text(invoiceNo, metadataX + 70, metadataY);
+
+    doc.text("Cashier", metadataX, metadataY + lineHeight);
+    doc.text(":", metadataX + 60, metadataY + lineHeight);
+    doc.text(cashierName, metadataX + 70, metadataY + lineHeight);
+
+    doc.text("Date & Time", metadataX, metadataY + lineHeight * 2);
+    doc.text(":", metadataX + 60, metadataY + lineHeight * 2);
+    doc.text(`${formattedDate}   ${formattedTime}`, metadataX + 70, metadataY + lineHeight * 2);
+
+    doc.text("Customer", metadataX, metadataY + lineHeight * 3);
+    doc.text(":", metadataX + 60, metadataY + lineHeight * 3);
+    doc.text(customerName, metadataX + 70, metadataY + lineHeight * 3);
+
+
+    const tableTop = startY + 85; 
+
+    const colX = [margin, margin + 25, margin + 220, margin + 270, margin + 310, margin + 370, margin + 440];
+
+    doc.moveTo(margin, tableTop).lineTo(pageWidth - margin, tableTop).stroke();
+
+    const headerY = tableTop + 5;
+    doc.fontSize(9).font("Helvetica");
+    doc.text("No", colX[0], headerY);
+    doc.text("Description Item / Service", colX[1], headerY);
+    doc.text("Quantity", colX[2], headerY);
+    doc.text("Unit", colX[3], headerY);
+    doc.text("Unit Price", colX[4], headerY, { width: 60, align: "right" });
+    doc.text("Item Discount", colX[5], headerY, { width: 70, align: "right" });
+    doc.text("Total Price", colX[6], headerY, { width: 90, align: "right" });
+
+    doc.moveTo(margin, tableTop + 20).lineTo(pageWidth - margin, tableTop + 20).stroke();
+
+    let currentY = tableTop + 30;
+    let itemNo = 1;
+    let totalQty = 0;
+
+    penjualan.detailPenjualan.forEach((item) => {
+      doc.font("Helvetica").fontSize(9);
+      doc.text(itemNo.toString(), colX[0], currentY);
+      doc.text(item.produk.nama_produk, colX[1], currentY, { width: 190 });
+      doc.text(item.jumlah_produk.toString(), colX[2], currentY, { align: "center", width: 40 });
+      doc.text("pcs", colX[3], currentY);
+      doc.text(parseFloat(item.produk.harga).toLocaleString("id-ID"), colX[4], currentY, { width: 60, align: "right" });
+      doc.text("0", colX[5], currentY, { width: 70, align: "right" }); // Placeholder Discount
+      doc.text(parseFloat(item.subtotal).toLocaleString("id-ID"), colX[6], currentY, { width: 90, align: "right" });
+
+      currentY += 15;
+      itemNo++;
+      totalQty += item.jumlah_produk;
+    });
+
+    doc.moveTo(margin, currentY + 5).lineTo(pageWidth - margin, currentY + 5).stroke();
+
+
+    const footerTop = currentY + 15;
+    doc.text("Total Item", margin + 180, footerTop);
+    doc.text(totalQty.toString(), margin + 270, footerTop);
+
+    const rightSideX = 400;
+
+    doc.text("SUBTOTAL", rightSideX, footerTop);
+    doc.text(parseFloat(penjualan.total_harga).toLocaleString("id-ID"), margin, footerTop, { align: "right" });
+
+    doc.text("DISCOUNT", rightSideX, footerTop + 15);
+    doc.text("0", margin, footerTop + 15, { align: "right" });
+
+    doc.dash(1, { space: 2 });
+    doc.moveTo(rightSideX, footerTop + 30).lineTo(pageWidth - margin, footerTop + 30).stroke();
+    doc.undash();
+
+    doc.font("Helvetica-Bold");
+    doc.text("TOTAL", rightSideX, footerTop + 35);
+    doc.text(parseFloat(penjualan.total_harga).toLocaleString("id-ID"), margin, footerTop + 35, { align: "right" });
+
+    const signatureY = footerTop + 40;
+    doc.font("Helvetica"); 
+    doc.text("CASHIER", margin + 50, signatureY);
+
+    doc.dash(1, { space: 2 });
+    doc.moveTo(margin + 20, signatureY + 50).lineTo(margin + 150, signatureY + 50).stroke();
+    doc.undash();
+
+    doc.text(cashierName, margin + 60, signatureY + 55);
+
+
+    doc.fontSize(10).font("Helvetica");
+    doc.text("THANK YOU FOR YOUR VISIT", margin, signatureY + 90, { align: "center", width: contentWidth });
 
     doc.end();
   } catch (error) {
