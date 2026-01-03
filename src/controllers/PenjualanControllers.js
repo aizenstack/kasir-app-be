@@ -1,3 +1,4 @@
+const PDFDocument = require("pdfkit");
 const {
   createPenjualan,
   getAllPenjualan,
@@ -51,7 +52,7 @@ exports.createPenjualan = async (req, res) => {
       } else if (typeof detail_penjualan === 'object' && detail_penjualan !== null) {
         const keys = Object.keys(detail_penjualan);
         const isArrayLike = keys.every(key => !isNaN(parseInt(key)));
-        
+
         if (isArrayLike && keys.length > 0) {
           const detailArray = [];
           const sortedKeys = keys.sort((a, b) => parseInt(a) - parseInt(b));
@@ -114,7 +115,7 @@ exports.createPenjualan = async (req, res) => {
           message: "Produk ID is required in detail_penjualan",
         });
       }
-      
+
       produk_id = parseInt(produk_id);
       if (isNaN(produk_id) || produk_id <= 0) {
         return res.status(400).json({
@@ -127,7 +128,7 @@ exports.createPenjualan = async (req, res) => {
           message: "Jumlah produk is required in detail_penjualan",
         });
       }
-      
+
       jumlah_produk = parseInt(jumlah_produk);
       if (isNaN(jumlah_produk) || jumlah_produk <= 0) {
         return res.status(400).json({
@@ -245,31 +246,31 @@ exports.createPenjualan = async (req, res) => {
     console.error("Create penjualan error:", error);
     console.error("Error stack:", error.stack);
     console.error("Request body:", req.body);
-    
+
 
     if (error.code === 'P2002') {
       return res.status(400).json({
         message: "Duplicate entry. Penjualan dengan data yang sama sudah ada.",
       });
     }
-    
+
     if (error.code === 'P2003') {
       return res.status(400).json({
         message: "Foreign key constraint failed. Pastikan produk_id dan pelanggan_id valid.",
       });
     }
-    
+
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         message: error.message || "Validation error",
       });
     }
-    
+
     return res.status(500).json({
       message: "Internal Server Error",
-      ...(process.env.NODE_ENV === 'development' && { 
+      ...(process.env.NODE_ENV === 'development' && {
         error: error.message,
-        stack: error.stack 
+        stack: error.stack
       }),
     });
   }
@@ -419,6 +420,119 @@ exports.deletePenjualan = async (req, res) => {
     return res.status(500).json({
       message: "Internal Server Error",
     });
+  }
+};
+
+exports.downloadNota = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const penjualanId = parseInt(id);
+
+    if (isNaN(penjualanId)) {
+      return res.status(400).json({ message: "Invalid penjualan ID" });
+    }
+
+    const penjualan = await getPenjualanById(penjualanId);
+
+    if (!penjualan) {
+      return res.status(404).json({
+        message: "Penjualan Not Found",
+      });
+    }
+
+    const doc = new PDFDocument({ margin: 50 });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=nota-${penjualanId}.pdf`
+    );
+
+    doc.pipe(res);
+
+    doc.fontSize(20).text("Detail Penjualan", { align: "center" });
+    doc.moveDown();
+
+    doc.fontSize(12).font("Helvetica-Bold").text("Data Pelanggan");
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    // Customer Data Body
+    const namaPelanggan = penjualan.pelanggan
+      ? penjualan.pelanggan.nama_pelanggan
+      : "Walk-in Customer";
+    const telepon = penjualan.pelanggan ? penjualan.pelanggan.telepon : "-";
+    const alamat = penjualan.pelanggan ? penjualan.pelanggan.alamat : "-";
+
+    doc.font("Helvetica").fontSize(10);
+    doc.text(`Nama Pelanggan: ${namaPelanggan}`);
+    doc.text(`Telepon: ${telepon}`, { align: "right" });
+    doc.moveUp(); 
+    doc.y = doc.y - 10;
+    doc.text(`Telepon: ${telepon}`, 400, doc.y);
+    doc.text(`Alamat: ${alamat}`, 50, doc.y + 15);
+
+    doc.moveDown(2);
+
+    doc.fontSize(12).font("Helvetica-Bold").text("Daftar Produk", 50);
+    doc.moveDown(0.5);
+
+    const tableTop = doc.y;
+    const itemX = 50;
+    const qtyX = 300;
+    const priceX = 350;
+    const subtotalX = 450;
+
+    doc.fontSize(10).font("Helvetica-Bold");
+    doc.text("Nama Produk", itemX, tableTop);
+    doc.text("Qty", qtyX, tableTop);
+    doc.text("Harga Satuan", priceX, tableTop);
+    doc.text("Subtotal", subtotalX, tableTop);
+
+    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
+    doc.font("Helvetica");
+
+    let y = tableTop + 25;
+
+    penjualan.detailPenjualan.forEach((item) => {
+      doc.text(item.produk.nama_produk, itemX, y);
+      doc.text(item.jumlah_produk.toString(), qtyX, y);
+      doc.text(
+        `Rp ${parseFloat(item.produk.harga).toLocaleString("id-ID")}`,
+        priceX,
+        y
+      );
+      doc.text(
+        `Rp ${parseFloat(item.subtotal).toLocaleString("id-ID")}`,
+        subtotalX,
+        y
+      );
+      y += 20;
+    });
+
+    doc.moveDown();
+
+    doc.rect(50, y, 500, 30).fill("#f0f4f8");
+    doc.fillColor("black");
+
+    doc.font("Helvetica-Bold").fontSize(12);
+    doc.text(
+      `Total Transaksi: Rp ${parseFloat(penjualan.total_harga).toLocaleString(
+        "id-ID"
+      )}`,
+      50,
+      y + 8,
+      { align: "right", width: 490 }
+    );
+
+    doc.end();
+  } catch (error) {
+    console.error("Download nota error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: "Internal Server Error",
+      });
+    }
   }
 };
 

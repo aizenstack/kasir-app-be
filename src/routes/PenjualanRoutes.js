@@ -5,6 +5,7 @@ const {
   getPenjualanById,
   updatePenjualan,
   deletePenjualan,
+  downloadNota,
 } = require("../controllers/PenjualanControllers");
 const { authenticateJWT } = require("../middlewares/jwt");
 const router = express.Router();
@@ -251,6 +252,36 @@ router.get("/penjualan", authenticateJWT, getAllPenjualan);
  *         description: Internal server error
  */
 router.get("/penjualan/:id", authenticateJWT, getPenjualanById);
+
+/**
+ * @swagger
+ * /penjualan/{id}/cetak:
+ *   get:
+ *     summary: Download sale receipt (Nota)
+ *     tags: [Penjualan]
+ *     security:
+ *       - OAuth2Password: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Sale ID
+ *     responses:
+ *       200:
+ *         description: PDF file of the receipt
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Sale not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/penjualan/:id/cetak", authenticateJWT, downloadNota);
 
 /**
  * @swagger
