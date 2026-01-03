@@ -25,13 +25,12 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - tanggal_penjualan
  *               - detail_penjualan
  *             properties:
  *               tanggal_penjualan:
  *                 type: string
  *                 format: date-time
- *                 description: Tanggal penjualan (required)
+ *                 description: Tanggal penjualan (optional, default to now)
  *                 example: "2024-12-27T10:00:00Z"
  *               pelanggan_id:
  *                 type: integer
@@ -63,13 +62,12 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - tanggal_penjualan
  *               - detail_penjualan
  *             properties:
  *               tanggal_penjualan:
  *                 type: string
  *                 format: date-time
- *                 description: Tanggal penjualan (required)
+ *                 description: Tanggal penjualan (optional, default to now)
  *                 example: "2024-12-27T10:00:00Z"
  *               pelanggan_id:
  *                 type: integer
