@@ -79,17 +79,20 @@ exports.createPenjualan = async (req, res) => {
       }
     }
 
-    if (!tanggal_penjualan) {
-      return res.status(400).json({
-        message: "Tanggal penjualan is required",
-      });
-    }
 
-    const tanggalDate = new Date(tanggal_penjualan);
-    if (isNaN(tanggalDate.getTime())) {
-      return res.status(400).json({
-        message: "Invalid tanggal_penjualan format. Use ISO 8601 format (e.g., 2024-12-27T10:00:00Z)",
-      });
+
+    // Determine final tanggal_penjualan
+    let tanggalDate;
+    if (tanggal_penjualan) {
+      tanggalDate = new Date(tanggal_penjualan);
+      if (isNaN(tanggalDate.getTime())) {
+        return res.status(400).json({
+          message: "Invalid tanggal_penjualan format. Use ISO 8601 format (e.g., 2024-12-27T10:00:00Z)",
+        });
+      }
+    } else {
+      // Default to current date if not provided
+      tanggalDate = new Date();
     }
 
     if (!detail_penjualan || !Array.isArray(detail_penjualan) || detail_penjualan.length === 0) {
@@ -438,7 +441,7 @@ exports.downloadNota = async (req, res) => {
       });
     }
 
-    const doc = new PDFDocument({ margin: 30, size: "A4" }); 
+    const doc = new PDFDocument({ margin: 30, size: "A4" });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -449,7 +452,7 @@ exports.downloadNota = async (req, res) => {
     doc.pipe(res);
 
     const startY = 30;
-    const pageWidth = 595.28; 
+    const pageWidth = 595.28;
     const margin = 30;
     const contentWidth = pageWidth - margin * 2;
 
@@ -501,7 +504,7 @@ exports.downloadNota = async (req, res) => {
     doc.text(customerName, metadataX + 70, metadataY + lineHeight * 3);
 
 
-    const tableTop = startY + 85; 
+    const tableTop = startY + 85;
 
     const colX = [margin, margin + 25, margin + 220, margin + 270, margin + 310, margin + 370, margin + 440];
 
@@ -562,7 +565,7 @@ exports.downloadNota = async (req, res) => {
     doc.text(parseFloat(penjualan.total_harga).toLocaleString("id-ID"), margin, footerTop + 35, { align: "right" });
 
     const signatureY = footerTop + 40;
-    doc.font("Helvetica"); 
+    doc.font("Helvetica");
     doc.text("CASHIER", margin + 50, signatureY);
 
     doc.dash(1, { space: 2 });
