@@ -81,7 +81,6 @@ exports.createPenjualan = async (req, res) => {
 
 
 
-    // Determine final tanggal_penjualan
     let tanggalDate;
     if (tanggal_penjualan) {
       tanggalDate = new Date(tanggal_penjualan);
@@ -91,7 +90,6 @@ exports.createPenjualan = async (req, res) => {
         });
       }
     } else {
-      // Default to current date if not provided
       tanggalDate = new Date();
     }
 
@@ -209,8 +207,7 @@ exports.createPenjualan = async (req, res) => {
         data: detailWithPenjualanId,
       });
 
-      // Update stok produk
-      for (const detail of detail_penjualan) {
+      for (const detail of detailPenjualanData) {
         const produk = await tx.produk.findUnique({
           where: { id: detail.produk_id },
         });
@@ -533,7 +530,7 @@ exports.downloadNota = async (req, res) => {
       doc.text(item.jumlah_produk.toString(), colX[2], currentY, { align: "center", width: 40 });
       doc.text("pcs", colX[3], currentY);
       doc.text(parseFloat(item.produk.harga).toLocaleString("id-ID"), colX[4], currentY, { width: 60, align: "right" });
-      doc.text("0", colX[5], currentY, { width: 70, align: "right" }); // Placeholder Discount
+      doc.text("0", colX[5], currentY, { width: 70, align: "right" }); 
       doc.text(parseFloat(item.subtotal).toLocaleString("id-ID"), colX[6], currentY, { width: 90, align: "right" });
 
       currentY += 15;
