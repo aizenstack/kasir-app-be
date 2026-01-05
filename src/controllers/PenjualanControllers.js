@@ -268,10 +268,8 @@ exports.createPenjualan = async (req, res) => {
 
     return res.status(500).json({
       message: "Internal Server Error",
-      ...(process.env.NODE_ENV === 'development' && {
-        error: error.message,
-        stack: error.stack
-      }),
+      error: error.message, // Temporarily expose error for debugging
+      stack: error.stack
     });
   }
 };
@@ -417,6 +415,8 @@ exports.deletePenjualan = async (req, res) => {
     }
     return res.status(500).json({
       message: "Internal Server Error",
+      error: error.message,
+      stack: error.stack
     });
   }
 };
@@ -454,7 +454,9 @@ exports.downloadNota = async (req, res) => {
     const contentWidth = pageWidth - margin * 2;
 
     const cashierName = "Administrator";
-    const customerName = penjualan.pelanggan ? penjualan.pelanggan.nama_pelanggan : "Umum";
+    const customerName = penjualan.pelanggan
+      ? `${penjualan.pelanggan.nama_pelanggan} - ${penjualan.pelanggan.alamat} - ${penjualan.pelanggan.telepon}`
+      : "Umum";
 
     const saleDate = new Date(penjualan.tanggal_penjualan);
     const timeZone = 'Asia/Jakarta';
@@ -530,7 +532,7 @@ exports.downloadNota = async (req, res) => {
       doc.text(item.jumlah_produk.toString(), colX[2], currentY, { align: "center", width: 40 });
       doc.text("pcs", colX[3], currentY);
       doc.text(parseFloat(item.produk.harga).toLocaleString("id-ID"), colX[4], currentY, { width: 60, align: "right" });
-      doc.text("0", colX[5], currentY, { width: 70, align: "right" }); 
+      doc.text("0", colX[5], currentY, { width: 70, align: "right" });
       doc.text(parseFloat(item.subtotal).toLocaleString("id-ID"), colX[6], currentY, { width: 90, align: "right" });
 
       currentY += 15;

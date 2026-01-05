@@ -23,7 +23,7 @@ exports.getPelangganById = (id) => {
       id: parseInt(id),
     },
     select: {
-      id: true, 
+      id: true,
       nama_pelanggan: true,
       alamat: true,
       telepon: true,
@@ -33,13 +33,13 @@ exports.getPelangganById = (id) => {
 };
 
 exports.updatePelanggan = (id, data) => {
-  return prisma.pelanggan.update({ 
+  return prisma.pelanggan.update({
     where: {
-      id: parseInt(id), 
+      id: parseInt(id),
     },
     data,
     select: {
-      id: true, 
+      id: true,
       nama_pelanggan: true,
       alamat: true,
       telepon: true,
@@ -51,14 +51,24 @@ exports.updatePelanggan = (id, data) => {
 exports.deletePelanggan = (id) => {
   return prisma.pelanggan.delete({
     where: {
-      id: parseInt(id), 
+      id: parseInt(id),
     },
     select: {
-      id: true, 
+      id: true,
       nama_pelanggan: true,
       alamat: true,
       telepon: true,
       createdAt: true,
+    },
+  });
+};
+
+exports.findPelangganByDetails = (nama_pelanggan, alamat, telepon) => {
+  return prisma.pelanggan.findFirst({
+    where: {
+      nama_pelanggan: nama_pelanggan,
+      alamat: alamat,
+      telepon: telepon,
     },
   });
 };

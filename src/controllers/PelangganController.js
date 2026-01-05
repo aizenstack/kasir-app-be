@@ -8,16 +8,16 @@ const {
 
 exports.createPelanggan = async (req, res) => {
   try {
-    const { 
-      nama_pelanggan, 
-      nama,  
-      alamat, 
+    const {
+      nama_pelanggan,
+      nama,
+      alamat,
       telepon,
-      no_telp 
+      no_telp
     } = req.body;
 
     const finalNamaPelanggan = nama_pelanggan || nama;
-    
+
     if (!finalNamaPelanggan) {
       return res
         .status(400)
@@ -55,7 +55,20 @@ exports.createPelanggan = async (req, res) => {
     if (finalTelepon !== undefined && finalTelepon !== null && finalTelepon !== '') {
       pelangganData.telepon = finalTelepon.trim();
     } else {
-      pelangganData.telepon = ''; 
+      pelangganData.telepon = '';
+    }
+
+    const { findPelangganByDetails } = require("../models/PelangganModels");
+    const existingExact = await findPelangganByDetails(
+      pelangganData.nama_pelanggan,
+      pelangganData.alamat,
+      pelangganData.telepon
+    );
+
+    if (existingExact) {
+      return res.status(400).json({
+        message: "Pelanggan with exactly the same name, address, and phone number already exists.",
+      });
     }
 
     const newPelanggan = await createPelanggan(pelangganData);
