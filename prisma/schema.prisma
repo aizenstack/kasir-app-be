@@ -46,7 +46,7 @@ model pelanggan {
 model produk {
   id          Int      @id @default(autoincrement())
   nama_produk String
-  harga       Decimal  @db.Decimal(10, 2)
+  harga       Decimal  @db.Decimal(20, 2)
   stok        Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -57,7 +57,7 @@ model produk {
 model penjualan {
   id                Int      @id @default(autoincrement())
   tanggal_penjualan DateTime
-  total_harga       Decimal  @db.Decimal(10, 2)
+  total_harga       Decimal  @db.Decimal(20, 2)
   createdAt         DateTime @default(now())
 
   pelanggan_id Int?
@@ -76,6 +76,6 @@ model detail_penjualan {
   produk    produk @relation(fields: [produk_id], references: [id])
 
   jumlah_produk Int
-  subtotal      Decimal  @db.Decimal(10, 2)
+  subtotal      Decimal  @db.Decimal(20, 2)
   createdAt     DateTime @default(now())
 }
