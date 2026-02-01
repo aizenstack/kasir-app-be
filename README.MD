@@ -111,3 +111,6 @@ Fitur dokumentasi:
 Proyek ini dibuat untuk keperluan pembelajaran dan pengembangan.  
 Silakan digunakan dan dikembangkan sesuai kebutuhan.
 
+© 2025 [Aizen](https://github.com/aizenstack). All rights reserved.
+
+
